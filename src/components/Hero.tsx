@@ -13,6 +13,7 @@ interface FlipCardProps {
   total: number;
   phase: AnimationPhase;
   target: { x: number; y: number; rotation: number; scale: number; opacity: number };
+  isMobile?: boolean;
 }
 
 // --- FlipCard Component ---
@@ -25,7 +26,38 @@ function FlipCard({
   total,
   phase,
   target,
+  isMobile,
 }: FlipCardProps) {
+  if (isMobile) {
+    return (
+      <div
+        className="cursor-pointer transition-all duration-[750ms] ease-out"
+        style={{
+          position: 'absolute',
+          width: IMG_WIDTH,
+          height: IMG_HEIGHT,
+          transform: `translate3d(${target.x}px, ${target.y}px, 0) rotate(${target.rotation}deg) scale(${target.scale})`,
+          opacity: target.opacity,
+          willChange: 'transform, opacity',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
+        <div className="absolute inset-0 h-full w-full overflow-hidden rounded-xl shadow-2xl bg-zinc-900 border border-white/5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={`hero-${index}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-black/10" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       animate={{
@@ -450,6 +482,7 @@ export default function Hero() {
                     total={activeTotalImages}
                     phase={introPhase}
                     target={target}
+                    isMobile={isMobile}
                   />
                 );
               });
