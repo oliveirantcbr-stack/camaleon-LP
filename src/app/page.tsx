@@ -19,10 +19,22 @@ export default function Home() {
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
       setShowPreloader(true);
-      const timer = setTimeout(() => {
+      
+      // 1.5s preloader timeout
+      const preloaderTimer = setTimeout(() => {
         setShowPreloader(false);
       }, 1500);
-      return () => clearTimeout(timer);
+
+      // Auto scroll to features grid after 5 seconds total delay
+      // (1.5s preloader + 3.5s reading Hero intro animations)
+      const scrollTimer = setTimeout(() => {
+        section2Ref.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 5000);
+
+      return () => {
+        clearTimeout(preloaderTimer);
+        clearTimeout(scrollTimer);
+      };
     }
   }, []);
 

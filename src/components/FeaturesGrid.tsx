@@ -24,7 +24,7 @@ function BentoCard({ title, description, icon: Icon, className = '', index = 0 }
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, delay: index * 0.08, ease: 'easeOut' }}
       whileHover={{ y: -5 }}
-      className={`relative group overflow-hidden border border-zinc-800/80 hover:border-red-500/30 p-8 flex flex-col justify-between transition-all duration-300 ${className}`}
+      className={`relative group overflow-hidden border border-zinc-800/80 hover:border-red-500/30 p-8 flex flex-col justify-between transition-all duration-300 bento-card ${className}`}
       style={{
         background: 'radial-gradient(100% 100% at 50% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%), rgba(9, 9, 11, 0.55)',
         backdropFilter: 'blur(12px)',
