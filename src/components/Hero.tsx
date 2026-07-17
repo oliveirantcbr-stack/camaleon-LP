@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, useTransform, useSpring, useMotionValue, useScroll, AnimatePresence } from 'framer-motion';
+import { motion, useTransform, useSpring, useMotionValue, useScroll, AnimatePresence, MotionValue, animate } from 'framer-motion';
 import Logo from '@/components/Logo';
 
 // --- Types ---
@@ -12,8 +12,11 @@ interface FlipCardProps {
   index: number;
   total: number;
   phase: AnimationPhase;
-  target: { x: number; y: number; rotation: number; scale: number; opacity: number };
-  isMobile?: boolean;
+  morphProgress: MotionValue<number>;
+  scrollRotate: MotionValue<number>;
+  mouseX: MotionValue<number>;
+  containerSize: { width: number; height: number };
+  scatterPosition: { x: number; y: number; rotation: number; scale: number; opacity: number };
 }
 
 // --- FlipCard Component ---
@@ -25,53 +28,192 @@ function FlipCard({
   index,
   total,
   phase,
-  target,
-  isMobile,
+  morphProgress,
+  scrollRotate,
+  mouseX,
+  containerSize,
+  scatterPosition,
 }: FlipCardProps) {
-  if (isMobile) {
-    return (
-      <div
-        className="cursor-pointer transition-all duration-[750ms] ease-out"
-        style={{
-          position: 'absolute',
-          width: IMG_WIDTH,
-          height: IMG_HEIGHT,
-          transform: `translate3d(${target.x}px, ${target.y}px, 0) rotate(${target.rotation}deg) scale(${target.scale})`,
-          opacity: target.opacity,
-          willChange: 'transform, opacity',
-          backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
-        }}
-      >
-        <div className="absolute inset-0 h-full w-full overflow-hidden rounded-xl shadow-2xl bg-zinc-900 border border-white/5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={`hero-${index}`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
-          <div className="absolute inset-0 bg-black/10" />
-        </div>
-      </div>
-    );
-  }
+  const minDimension = Math.min(containerSize.width, containerSize.height);
+  const isMobile = containerSize.width > 0 && containerSize.width < 768;
+
+  // A. Circle Coordinates
+  const circleRadius = Math.min(minDimension * 0.35, 350);
+  const circleAngle = (index / total) * 360;
+  const circleRad = (circleAngle * Math.PI) / 180;
+  const circleX = Math.cos(circleRad) * circleRadius;
+  const circleY = Math.sin(circleRad) * circleRadius;
+  const circleRotation = circleAngle + 90;
+
+  // B. Bottom Arc Coordinates
+  const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
+  const arcRadius = baseRadius * (isMobile ? 1.4 : 1.1);
+  const arcApexY = containerSize.height * (isMobile ? 0.35 : 0.25);
+  const arcCenterY = arcApexY + arcRadius;
+
+  const spreadAngle = isMobile ? 100 : 130;
+  const startAngle = -90 - spreadAngle / 2;
+  const step = spreadAngle / (total - 1);
+  const baseArcAngle = startAngle + index * step;
+
+  // --- Local MotionValue to track initial phase animations ---
+  const introProgress = useMotionValue(0);
+
+  useEffect(() => {
+    if (phase === 'scatter') {
+      animate(introProgress, 0, { type: 'spring', stiffness: 45, damping: 16 });
+    } else if (phase === 'line') {
+      animate(introProgress, 1, { type: 'spring', stiffness: 45, damping: 16 });
+    } else if (phase === 'circle') {
+      animate(introProgress, 2, { type: 'spring', stiffness: 45, damping: 16 });
+    }
+  }, [phase, introProgress]);
+
+  // --- Dynamic transforms using MotionValues directly ---
+  const x = useTransform(
+    [introProgress, morphProgress, scrollRotate, mouseX],
+    ([intro, morph, sRotate, mX]) => {
+      // 1. Calculate scatter position
+      const scatterX = scatterPosition.x;
+      
+      // 2. Calculate line position
+      const lineSpacing = 70;
+      const lineTotalWidth = total * lineSpacing;
+      const lineX = index * lineSpacing - lineTotalWidth / 2;
+
+      // 3. Circle position is circleX
+
+      // Determine the base position based on intro animation progress
+      let basePos = 0;
+      if (intro < 1) {
+        basePos = lerp(scatterX, lineX, intro);
+      } else {
+        basePos = lerp(lineX, circleX, intro - 1);
+      }
+
+      if (intro < 2) {
+        return basePos;
+      }
+
+      // 4. Calculate arc position (scroll morph active)
+      const scrollProgress = Math.min(Math.max(sRotate / 360, 0), 1);
+      const maxRotation = spreadAngle * 0.8;
+      const boundedRotation = -scrollProgress * maxRotation;
+      const currentArcAngle = baseArcAngle + boundedRotation;
+      
+      const arcX = Math.cos((currentArcAngle * Math.PI) / 180) * arcRadius + mX;
+
+      return lerp(circleX, arcX, morph);
+    }
+  );
+
+  const y = useTransform(
+    [introProgress, morphProgress, scrollRotate],
+    ([intro, morph, sRotate]) => {
+      // 1. Calculate scatter position
+      const scatterY = scatterPosition.y;
+      
+      // 2. Calculate line position
+      const lineY = 0;
+
+      // 3. Circle position is circleY
+
+      // Determine the base position based on intro animation progress
+      let basePos = 0;
+      if (intro < 1) {
+        basePos = lerp(scatterY, lineY, intro);
+      } else {
+        basePos = lerp(lineY, circleY, intro - 1);
+      }
+
+      if (intro < 2) {
+        return basePos;
+      }
+
+      // 4. Calculate arc position (scroll morph active)
+      const scrollProgress = Math.min(Math.max(sRotate / 360, 0), 1);
+      const maxRotation = spreadAngle * 0.8;
+      const boundedRotation = -scrollProgress * maxRotation;
+      const currentArcAngle = baseArcAngle + boundedRotation;
+
+      const arcY = Math.sin((currentArcAngle * Math.PI) / 180) * arcRadius + arcCenterY;
+
+      return lerp(circleY, arcY, morph);
+    }
+  );
+
+  const rotate = useTransform(
+    [introProgress, morphProgress, scrollRotate],
+    ([intro, morph, sRotate]) => {
+      // 1. Calculate scatter position
+      const scatterRot = scatterPosition.rotation;
+      
+      // 2. Calculate line position
+      const lineRot = 0;
+
+      // 3. Circle position is circleRotation
+
+      // Determine the base position based on intro animation progress
+      let basePos = 0;
+      if (intro < 1) {
+        basePos = lerp(scatterRot, lineRot, intro);
+      } else {
+        basePos = lerp(lineRot, circleRotation, intro - 1);
+      }
+
+      if (intro < 2) {
+        return basePos;
+      }
+
+      // 4. Calculate arc position (scroll morph active)
+      const scrollProgress = Math.min(Math.max(sRotate / 360, 0), 1);
+      const maxRotation = spreadAngle * 0.8;
+      const boundedRotation = -scrollProgress * maxRotation;
+      const currentArcAngle = baseArcAngle + boundedRotation;
+      const arcRotation = currentArcAngle + 90;
+
+      return lerp(circleRotation, arcRotation, morph);
+    }
+  );
+
+  const scale = useTransform(
+    [introProgress, morphProgress],
+    ([intro, morph]) => {
+      const scatterScale = scatterPosition.scale;
+      const lineScale = 1;
+      const circleScale = 1;
+
+      let basePos = 0;
+      if (intro < 1) {
+        basePos = lerp(scatterScale, lineScale, intro);
+      } else {
+        basePos = lerp(lineScale, circleScale, intro - 1);
+      }
+
+      if (intro < 2) {
+        return basePos;
+      }
+
+      const arcScale = isMobile ? 1.4 : 1.8;
+      return lerp(circleScale, arcScale, morph);
+    }
+  );
+
+  const opacity = useTransform(
+    [introProgress, morphProgress],
+    ([intro, morph]) => {
+      const scatterOpacity = scatterPosition.opacity;
+      const lineOpacity = 1;
+
+      if (intro < 1) {
+        return lerp(scatterOpacity, lineOpacity, intro);
+      }
+      return 1;
+    }
+  );
 
   return (
     <motion.div
-      animate={{
-        x: target.x,
-        y: target.y,
-        rotate: target.rotation,
-        scale: target.scale,
-        opacity: target.opacity,
-      }}
-      transition={{
-        type: 'spring',
-        stiffness: 45,
-        damping: 16,
-      }}
       style={{
         position: 'absolute',
         width: IMG_WIDTH,
@@ -79,6 +221,11 @@ function FlipCard({
         transformStyle: 'preserve-3d',
         perspective: '1000px',
         willChange: 'transform, opacity',
+        x,
+        y,
+        rotate,
+        scale,
+        opacity,
       }}
       className="cursor-pointer group"
     >
@@ -86,7 +233,7 @@ function FlipCard({
         className="relative h-full w-full"
         style={{ transformStyle: 'preserve-3d' }}
         transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
-        whileHover={{ rotateY: 180 }}
+        whileHover={isMobile ? undefined : { rotateY: 180 }}
       >
         {/* Front Face */}
         <div
@@ -185,17 +332,14 @@ export default function Hero() {
   });
 
   // Inertial smooth scroll progress
-  const smoothScrollProgress = useSpring(scrollYProgress, { stiffness: 60, damping: 20 });
+  const smoothScrollProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
   // Transform scroll progress [0, 0.48] to the original virtual scroll domain [0, 3000]
   const virtualScroll = useTransform(smoothScrollProgress, [0, 0.48], [0, 3000]);
 
   // Morph & Shuffling rotations based on virtualScroll value
   const morphProgress = useTransform(virtualScroll, [0, 600], [0, 1]);
-  const smoothMorph = useSpring(morphProgress, { stiffness: 40, damping: 20 });
-
   const scrollRotate = useTransform(virtualScroll, [600, 3000], [0, 360]);
-  const smoothScrollRotate = useSpring(scrollRotate, { stiffness: 40, damping: 20 });
 
   // --- Mouse Parallax ---
   const mouseX = useMotionValue(0);
@@ -226,35 +370,29 @@ export default function Hero() {
   }, []);
 
   // --- Random Scatter Positions ---
-  const scatterPositions = useMemo(() => {
-    return IMAGES.map(() => ({
-      x: (Math.random() - 0.5) * 1500,
-      y: (Math.random() - 0.5) * 1000,
-      rotation: (Math.random() - 0.5) * 180,
-      scale: 0.6,
-      opacity: 0,
-    }));
-  }, []);
-
-  // --- Render Loop Subscriptions ---
-  const [morphValue, setMorphValue] = useState(0);
-  const [rotateValue, setRotateValue] = useState(0);
-  const [parallaxValue, setParallaxValue] = useState(0);
+  const [scatterPositions, setScatterPositions] = useState<Array<{ x: number; y: number; rotation: number; scale: number; opacity: number }>>([]);
 
   useEffect(() => {
-    const unsubscribeMorph = smoothMorph.on('change', setMorphValue);
-    const unsubscribeRotate = smoothScrollRotate.on('change', setRotateValue);
-    const unsubscribeParallax = smoothMouseX.on('change', setParallaxValue);
-    return () => {
-      unsubscribeMorph();
-      unsubscribeRotate();
-      unsubscribeParallax();
-    };
-  }, [smoothMorph, smoothScrollRotate, smoothMouseX]);
+    setScatterPositions(
+      IMAGES.map(() => ({
+        x: (Math.random() - 0.5) * 1500,
+        y: (Math.random() - 0.5) * 1000,
+        rotation: (Math.random() - 0.5) * 180,
+        scale: 0.6,
+        opacity: 0,
+      }))
+    );
+  }, []);
 
   // --- Content Opacity ---
-  const contentOpacity = useTransform(smoothMorph, [0.8, 1], [0, 1]);
-  const contentY = useTransform(smoothMorph, [0.8, 1], [20, 0]);
+  const contentOpacity = useTransform(morphProgress, [0.8, 1], [0, 1]);
+  const contentY = useTransform(morphProgress, [0.8, 1], [20, 0]);
+
+  // --- Intro Text Opacity and Blur transforms ---
+  const introTextOpacity = useTransform(morphProgress, [0, 0.4], [1, 0]);
+  const introTextY = useTransform(morphProgress, [0, 0.4], [0, -20]);
+  const introTextBlur = useTransform(morphProgress, [0, 0.4], ['blur(0px)', 'blur(10px)']);
+  const arrowOpacity = useTransform(morphProgress, [0, 0.4], [0.5, 0]);
 
   return (
     <div className="w-full relative bg-black">
@@ -299,12 +437,14 @@ export default function Hero() {
           {/* Intro Text (Fades out) */}
           <div className="absolute z-0 flex flex-col items-center justify-center text-center pointer-events-none top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2">
             <motion.h1
-              initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
-              animate={
-                introPhase === 'circle' && morphValue < 0.5
-                  ? { opacity: 1 - morphValue * 2, y: 0, filter: 'blur(0px)' }
-                  : { opacity: 0, filter: 'blur(10px)' }
-              }
+              initial={{ opacity: 0, y: 20 }}
+              animate={introPhase === 'circle' ? { opacity: 1, y: 0 } : {}}
+              style={{
+                opacity: introPhase === 'circle' ? introTextOpacity : 0,
+                y: introPhase === 'circle' ? introTextY : 20,
+                filter: introPhase === 'circle' ? introTextBlur : 'blur(10px)',
+                willChange: 'transform, opacity, filter',
+              }}
               transition={{ duration: 1 }}
               className="text-2xl font-semibold tracking-tight text-white/95 md:text-4xl"
             >
@@ -312,11 +452,11 @@ export default function Hero() {
             </motion.h1>
             <motion.div
               initial={{ opacity: 0 }}
-              animate={
-                introPhase === 'circle' && morphValue < 0.5
-                  ? { opacity: 0.5 - morphValue }
-                  : { opacity: 0 }
-              }
+              animate={introPhase === 'circle' ? { opacity: 0.5 } : {}}
+              style={{
+                opacity: introPhase === 'circle' ? arrowOpacity : 0,
+                willChange: 'opacity',
+              }}
               transition={{ duration: 1, delay: 0.2 }}
               className="mt-4 flex flex-col items-center gap-1.5"
             >
@@ -326,6 +466,7 @@ export default function Hero() {
               <motion.span
                 animate={{ y: [0, 4, 0] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+                style={{ willChange: 'transform' }}
                 className="text-xs text-red-500"
               >
                 ↓
@@ -416,64 +557,6 @@ export default function Hero() {
               const activeTotalImages = isMobile ? 10 : 20;
 
               return IMAGES.slice(0, activeTotalImages).map((src, i) => {
-                let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
-
-                if (introPhase === 'scatter') {
-                  target = scatterPositions[i];
-                } else if (introPhase === 'line') {
-                  const lineSpacing = 70;
-                  const lineTotalWidth = activeTotalImages * lineSpacing;
-                  const lineX = i * lineSpacing - lineTotalWidth / 2;
-                  target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
-                } else {
-                  // Circle & Arc Morph Physics
-                  const minDimension = Math.min(containerSize.width, containerSize.height);
-
-                  // A. Calculate Circle Coordinates
-                  const circleRadius = Math.min(minDimension * 0.35, 350);
-                  const circleAngle = (i / activeTotalImages) * 360;
-                  const circleRad = (circleAngle * Math.PI) / 180;
-                  const circlePos = {
-                    x: Math.cos(circleRad) * circleRadius,
-                    y: Math.sin(circleRad) * circleRadius,
-                    rotation: circleAngle + 90,
-                  };
-
-                  // B. Calculate Bottom Arc Coordinates (Rainbow curve convex up)
-                  const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
-                  const arcRadius = baseRadius * (isMobile ? 1.4 : 1.1);
-
-                  const arcApexY = containerSize.height * (isMobile ? 0.35 : 0.25);
-                  const arcCenterY = arcApexY + arcRadius;
-
-                  const spreadAngle = isMobile ? 100 : 130;
-                  const startAngle = -90 - spreadAngle / 2;
-                  const step = spreadAngle / (activeTotalImages - 1);
-
-                  const scrollProgress = Math.min(Math.max(rotateValue / 360, 0), 1);
-                  const maxRotation = spreadAngle * 0.8;
-                  const boundedRotation = -scrollProgress * maxRotation;
-
-                  const currentArcAngle = startAngle + i * step + boundedRotation;
-                  const arcRad = (currentArcAngle * Math.PI) / 180;
-
-                  const arcPos = {
-                    x: Math.cos(arcRad) * arcRadius + parallaxValue,
-                    y: Math.sin(arcRad) * arcRadius + arcCenterY,
-                    rotation: currentArcAngle + 90,
-                    scale: isMobile ? 1.4 : 1.8,
-                  };
-
-                  // C. Morph Interpolation
-                  target = {
-                    x: lerp(circlePos.x, arcPos.x, morphValue),
-                    y: lerp(circlePos.y, arcPos.y, morphValue),
-                    rotation: lerp(circlePos.rotation, arcPos.rotation, morphValue),
-                    scale: lerp(1, arcPos.scale, morphValue),
-                    opacity: 1,
-                  };
-                }
-
                 return (
                   <FlipCard
                     key={i}
@@ -481,8 +564,11 @@ export default function Hero() {
                     index={i}
                     total={activeTotalImages}
                     phase={introPhase}
-                    target={target}
-                    isMobile={isMobile}
+                    morphProgress={morphProgress}
+                    scrollRotate={scrollRotate}
+                    mouseX={smoothMouseX}
+                    containerSize={containerSize}
+                    scatterPosition={scatterPositions[i] || { x: 0, y: 0, rotation: 0, scale: 0.6, opacity: 0 }}
                   />
                 );
               });
