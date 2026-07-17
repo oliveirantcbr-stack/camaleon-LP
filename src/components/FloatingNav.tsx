@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import Logo from '@/components/Logo';
 
 export default function FloatingNav({ triggerRef }: { triggerRef: React.RefObject<HTMLElement | null> }) {
   const [visible, setVisible] = useState(false);
@@ -47,13 +47,7 @@ export default function FloatingNav({ triggerRef }: { triggerRef: React.RefObjec
           >
             {/* Logo */}
             <div className="flex items-center gap-2.5">
-              <Image
-                src="/camaleonai.svg"
-                alt="Camaleon AI"
-                width={36}
-                height={36}
-                priority
-              />
+              <Logo size={36} />
               <span className="text-sm font-semibold tracking-wide hidden sm:block text-white">
                 Camaleon{' '}
                 <span

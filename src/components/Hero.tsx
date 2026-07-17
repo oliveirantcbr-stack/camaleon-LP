@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, useTransform, useSpring, useMotionValue, useScroll, AnimatePresence } from 'framer-motion';
+import Logo from '@/components/Logo';
 
 // --- Types ---
 export type AnimationPhase = 'scatter' | 'line' | 'circle' | 'bottom-strip';
@@ -45,6 +46,7 @@ function FlipCard({
         height: IMG_HEIGHT,
         transformStyle: 'preserve-3d',
         perspective: '1000px',
+        willChange: 'transform, opacity',
       }}
       className="cursor-pointer group"
     >
@@ -306,15 +308,16 @@ export default function Hero() {
           >
             {/* Logo Image with Native Rainbow SVG Gradient */}
             <div className="mb-4 pointer-events-auto">
-              <motion.img
-                src="/camaleonai.svg"
-                alt="Camaleon IA Logo"
-                className="w-12 h-12 hover:scale-110 transition-all duration-300"
+              <motion.div
+                className="w-12 h-12 flex items-center justify-center cursor-pointer"
                 style={{
                   filter: 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.25))',
                 }}
                 whileHover={{ scale: 1.15, filter: 'drop-shadow(0 0 18px rgba(244, 63, 94, 0.45))' }}
-              />
+                transition={{ duration: 0.3 }}
+              >
+                <Logo size={48} />
+              </motion.div>
             </div>
 
             {/* Square Badge with Corner Squares */}
@@ -376,77 +379,81 @@ export default function Hero() {
 
           {/* Main interactive viewport container for cards */}
           <div className="relative flex items-center justify-center w-full h-full">
-            {IMAGES.slice(0, TOTAL_IMAGES).map((src, i) => {
-              let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
+            {(() => {
+              const isMobile = containerSize.width > 0 && containerSize.width < 768;
+              const activeTotalImages = isMobile ? 10 : 20;
 
-              if (introPhase === 'scatter') {
-                target = scatterPositions[i];
-              } else if (introPhase === 'line') {
-                const lineSpacing = 70;
-                const lineTotalWidth = TOTAL_IMAGES * lineSpacing;
-                const lineX = i * lineSpacing - lineTotalWidth / 2;
-                target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
-              } else {
-                // Circle & Arc Morph Physics
-                const isMobile = containerSize.width < 768;
-                const minDimension = Math.min(containerSize.width, containerSize.height);
+              return IMAGES.slice(0, activeTotalImages).map((src, i) => {
+                let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
 
-                // A. Calculate Circle Coordinates
-                const circleRadius = Math.min(minDimension * 0.35, 350);
-                const circleAngle = (i / TOTAL_IMAGES) * 360;
-                const circleRad = (circleAngle * Math.PI) / 180;
-                const circlePos = {
-                  x: Math.cos(circleRad) * circleRadius,
-                  y: Math.sin(circleRad) * circleRadius,
-                  rotation: circleAngle + 90,
-                };
+                if (introPhase === 'scatter') {
+                  target = scatterPositions[i];
+                } else if (introPhase === 'line') {
+                  const lineSpacing = 70;
+                  const lineTotalWidth = activeTotalImages * lineSpacing;
+                  const lineX = i * lineSpacing - lineTotalWidth / 2;
+                  target = { x: lineX, y: 0, rotation: 0, scale: 1, opacity: 1 };
+                } else {
+                  // Circle & Arc Morph Physics
+                  const minDimension = Math.min(containerSize.width, containerSize.height);
 
-                // B. Calculate Bottom Arc Coordinates (Rainbow curve convex up)
-                const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
-                const arcRadius = baseRadius * (isMobile ? 1.4 : 1.1);
+                  // A. Calculate Circle Coordinates
+                  const circleRadius = Math.min(minDimension * 0.35, 350);
+                  const circleAngle = (i / activeTotalImages) * 360;
+                  const circleRad = (circleAngle * Math.PI) / 180;
+                  const circlePos = {
+                    x: Math.cos(circleRad) * circleRadius,
+                    y: Math.sin(circleRad) * circleRadius,
+                    rotation: circleAngle + 90,
+                  };
 
-                const arcApexY = containerSize.height * (isMobile ? 0.35 : 0.25);
-                const arcCenterY = arcApexY + arcRadius;
+                  // B. Calculate Bottom Arc Coordinates (Rainbow curve convex up)
+                  const baseRadius = Math.min(containerSize.width, containerSize.height * 1.5);
+                  const arcRadius = baseRadius * (isMobile ? 1.4 : 1.1);
 
-                const spreadAngle = isMobile ? 100 : 130;
-                const startAngle = -90 - spreadAngle / 2;
-                const step = spreadAngle / (TOTAL_IMAGES - 1);
+                  const arcApexY = containerSize.height * (isMobile ? 0.35 : 0.25);
+                  const arcCenterY = arcApexY + arcRadius;
 
-                const scrollProgress = Math.min(Math.max(rotateValue / 360, 0), 1);
-                const maxRotation = spreadAngle * 0.8;
-                const boundedRotation = -scrollProgress * maxRotation;
+                  const spreadAngle = isMobile ? 100 : 130;
+                  const startAngle = -90 - spreadAngle / 2;
+                  const step = spreadAngle / (activeTotalImages - 1);
 
-                const currentArcAngle = startAngle + i * step + boundedRotation;
-                const arcRad = (currentArcAngle * Math.PI) / 180;
+                  const scrollProgress = Math.min(Math.max(rotateValue / 360, 0), 1);
+                  const maxRotation = spreadAngle * 0.8;
+                  const boundedRotation = -scrollProgress * maxRotation;
 
-                const arcPos = {
-                  x: Math.cos(arcRad) * arcRadius + parallaxValue,
-                  y: Math.sin(arcRad) * arcRadius + arcCenterY,
-                  rotation: currentArcAngle + 90,
-                  scale: isMobile ? 1.4 : 1.8,
-                };
+                  const currentArcAngle = startAngle + i * step + boundedRotation;
+                  const arcRad = (currentArcAngle * Math.PI) / 180;
 
-                // C. Morph Interpolation
-                target = {
-                  x: lerp(circlePos.x, arcPos.x, morphValue),
-                  y: lerp(circlePos.y, arcPos.y, morphValue),
-                  rotation: lerp(circlePos.rotation, arcPos.rotation, morphValue),
-                  scale: lerp(1, arcPos.scale, morphValue),
-                  opacity: 1,
-                };
-              }
+                  const arcPos = {
+                    x: Math.cos(arcRad) * arcRadius + parallaxValue,
+                    y: Math.sin(arcRad) * arcRadius + arcCenterY,
+                    rotation: currentArcAngle + 90,
+                    scale: isMobile ? 1.4 : 1.8,
+                  };
 
-              return (
-                <FlipCard
-                  key={i}
-                  src={src}
-                  index={i}
-                  total={TOTAL_IMAGES}
-                  phase={introPhase}
-                  target={target}
-                />
-              );
-            })}
+                  // C. Morph Interpolation
+                  target = {
+                    x: lerp(circlePos.x, arcPos.x, morphValue),
+                    y: lerp(circlePos.y, arcPos.y, morphValue),
+                    rotation: lerp(circlePos.rotation, arcPos.rotation, morphValue),
+                    scale: lerp(1, arcPos.scale, morphValue),
+                    opacity: 1,
+                  };
+                }
+
+                return (
+                  <FlipCard
+                    key={i}
+                    src={src}
+                    index={i}
+                    total={activeTotalImages}
+                    phase={introPhase}
+                    target={target}
+                  />
+                );
+              });
+            })()}
           </div>
 
           {/* ── Scroll progress indicator ── */}

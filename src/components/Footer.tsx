@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
+import Logo from '@/components/Logo';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -19,12 +19,7 @@ export default function Footer() {
         
         {/* Brand/Logo */}
         <div className="flex items-center gap-2.5">
-          <Image
-            src="/camaleonai.svg"
-            alt="Camaleon AI"
-            width={28}
-            height={28}
-          />
+          <Logo size={28} />
           <span className="text-sm font-semibold tracking-wide text-white">
             Camaleon{' '}
             <span
