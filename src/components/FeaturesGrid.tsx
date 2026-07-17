@@ -16,6 +16,44 @@ interface BentoCardProps {
 function BentoCard({ title, description, icon: Icon, className = '', index = 0 }: BentoCardProps) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
+
+  if (isMobile) {
+    return (
+      <div
+        className={`relative overflow-hidden border border-zinc-800/80 p-8 flex flex-col justify-between bento-card ${className}`}
+        style={{
+          backgroundColor: 'rgba(9, 9, 11, 0.95)',
+        }}
+      >
+        <div>
+          {/* Icon Box */}
+          <div className="inline-flex items-center justify-center p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg text-red-400 mb-6">
+            <Icon className="w-5 h-5" />
+          </div>
+
+          {/* Title */}
+          <h3 className="text-sm font-semibold text-white mb-3 font-sans tracking-wide">
+            {title}
+          </h3>
+
+          {/* Description */}
+          <p className="text-[11px] text-zinc-400 leading-relaxed font-normal">
+            {description}
+          </p>
+        </div>
+
+        {/* Micro tech mark */}
+        <div className="absolute bottom-3 right-3 text-[9px] font-mono text-zinc-800 select-none">
+          // CM.IA
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
