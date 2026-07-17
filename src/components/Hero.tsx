@@ -72,7 +72,7 @@ function FlipCard({
   // --- Dynamic transforms using MotionValues directly ---
   const x = useTransform(
     [introProgress, morphProgress, scrollRotate, mouseX],
-    ([intro, morph, sRotate, mX]) => {
+    ([intro, morph, sRotate, mX]: number[]) => {
       // 1. Calculate scatter position
       const scatterX = scatterPosition.x;
       
@@ -109,7 +109,7 @@ function FlipCard({
 
   const y = useTransform(
     [introProgress, morphProgress, scrollRotate],
-    ([intro, morph, sRotate]) => {
+    ([intro, morph, sRotate]: number[]) => {
       // 1. Calculate scatter position
       const scatterY = scatterPosition.y;
       
@@ -144,7 +144,7 @@ function FlipCard({
 
   const rotate = useTransform(
     [introProgress, morphProgress, scrollRotate],
-    ([intro, morph, sRotate]) => {
+    ([intro, morph, sRotate]: number[]) => {
       // 1. Calculate scatter position
       const scatterRot = scatterPosition.rotation;
       
@@ -178,7 +178,7 @@ function FlipCard({
 
   const scale = useTransform(
     [introProgress, morphProgress],
-    ([intro, morph]) => {
+    ([intro, morph]: number[]) => {
       const scatterScale = scatterPosition.scale;
       const lineScale = 1;
       const circleScale = 1;
@@ -201,7 +201,7 @@ function FlipCard({
 
   const opacity = useTransform(
     [introProgress, morphProgress],
-    ([intro, morph]) => {
+    ([intro, morph]: number[]) => {
       const scatterOpacity = scatterPosition.opacity;
       const lineOpacity = 1;
 
